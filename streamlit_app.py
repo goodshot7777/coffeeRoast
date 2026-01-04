@@ -5,7 +5,8 @@ import time
 PROFILES = {
     "フルシティロースト": [180, 75, 95, 110, 125, 140, 155, 170, 185, 195, 205, 210, 220, 225],
     "シティーロースト": [180, 75, 95, 115, 130, 145, 160, 175, 190, 200, 210, 215],
-    "浅煎り": [180, 75, 100, 120, 140, 155, 170, 185, 195, 200]
+    "浅煎り": [180, 75, 100, 120, 140, 155, 170, 185, 195, 200],
+    "グアテマラSHB": [210, 75, 122, 127, 138, 145, 147, 159, 164, 168, 173, 173, 185, 187, 187, 195, 196, 207]
 }
 
 def play_sound_js():
@@ -96,5 +97,6 @@ if not st.session_state.running:
     for i, t in enumerate(temps):
         target_col = col_list1 if i < 7 else col_list2
         target_col.markdown(f'<div class="sched-item">{i}min: {t}℃</div>', unsafe_allow_html=True)
+
 
 
