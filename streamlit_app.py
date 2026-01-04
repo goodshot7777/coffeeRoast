@@ -3,8 +3,8 @@ import time
 
 # --- プロファイル設定 ---
 PROFILES = {
-    "フルシティ (深口)": [180, 95, 110, 125, 140, 155, 170, 185, 195, 205, 210, 220, 225],
-    "シティ (中深)": [180, 95, 115, 130, 145, 160, 175, 190, 200, 210, 215],
+    "フルシティロースト": [180, 95, 110, 125, 140, 155, 170, 185, 195, 205, 210, 220, 225],
+    "シティーロースト": [180, 95, 115, 130, 145, 160, 175, 190, 200, 210, 215],
     "浅煎り": [180, 100, 120, 140, 155, 170, 185, 195, 200]
 }
 
@@ -73,7 +73,7 @@ while st.session_state.running:
         # メインの数字エリア
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f'<div class="status-box"><p class="label">狙い温度</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-box"><p class="label">次計測で狙う温度</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
         with c2:
             st.markdown(f'<div class="status-box"><p class="label">計測まであと</p><p class="value-count">{countdown}s</p></div>', unsafe_allow_html=True)
         
@@ -96,3 +96,4 @@ if not st.session_state.running:
     for i, t in enumerate(temps):
         target_col = col_list1 if i < 7 else col_list2
         target_col.markdown(f'<div class="sched-item">{i}min: {t}℃</div>', unsafe_allow_html=True)
+
