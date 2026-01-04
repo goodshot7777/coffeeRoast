@@ -50,4 +50,49 @@ with col_head2:
             play_sound_js()
     else:
         if st.button("⏹️ RESET", use_container_width=True):
-            st.session_state.start_
+            st.session_state.start_time = None
+            st.session_state.running = False
+
+# --- メインコックピット表示 ---
+placeholder = st.empty()
+
+while st.session_state.running:
+    elapsed = int(time.time() - st.session_state.start_time)
+    min_curr = elapsed // 60
+    sec_curr = elapsed % 60
+    
+    # 1分ごとのアラート
+    if min_curr > st.session_state.last_alert_min:
+        play_sound_js()
+        st.session_state.last_alert_min = min_curr
+
+    curr_target = temps[min_curr] if min_curr < len(temps) else temps[-1]
+    countdown = 60 - sec_curr
+
+    with placeholder.container():
+        # メインの数字エリア
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f'<div class="status-box"><p class="label">狙い温度</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'<div class="status-box"><p class="label">計測まであと</p><p class="value-count">{countdown}s</p></div>', unsafe_allow_html=True)
+        
+        st.markdown(f"**🕒 経過時間: {min_curr:02d}:{sec_curr:02d}**")
+        
+        # スケジュールを2列で表示（1画面に収めるため）
+        st.write("---")
+        col_list1, col_list2 = st.columns(2)
+        for i, t in enumerate(temps):
+            active_class = "sched-active" if i == min_curr else ""
+            target_col = col_list1 if i < 7 else col_list2
+            target_col.markdown(f'<div class="sched-item {active_class}">{i}min: {t}℃</div>', unsafe_allow_html=True)
+
+    time.sleep(1)
+
+if not st.session_state.running:
+    st.write("準備ができたらSTARTを押してください。")
+    # 停止中もスケジュールだけは見せる
+    col_list1, col_list2 = st.columns(2)
+    for i, t in enumerate(temps):
+        target_col = col_list1 if i < 7 else col_list2
+        target_col.markdown(f'<div class="sched-item">{i}min: {t}℃</div>', unsafe_allow_html=True)
