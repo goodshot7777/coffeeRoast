@@ -8,94 +8,106 @@ PROFILES = {
     "シナモン (浅煎り)": [180, 100, 120, 140, 155, 170, 185, 195, 200]
 }
 
-# --- 音を鳴らすためのJavaScript ---
-# ブラウザの制限を回避するため、この関数を呼び出すことで音を鳴らします
 def play_sound_js():
     st.components.v1.html(
-        """
-        <script>
-        var audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-        audio.play();
-        </script>
-        """,
+        """<script>var audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');audio.play();</script>""",
         height=0,
     )
 
-st.set_page_config(page_title="Roast Master Pro", layout="centered")
+# 画面幅を最大限に使い、余計なメニューを隠す設定
+st.set_page_config(page_title="Roaster", layout="centered")
 
-# --- カスタムCSS ---
 st.markdown("""
     <style>
-    .metric-container { background-color: #1e1e1e; padding: 20px; border-radius: 15px; color: #ffffff; text-align: center; margin-bottom: 10px; }
-    .target-temp { color: #00ff00; font-size: 70px !important; font-weight: bold; }
-    .countdown { color: #ff4b4b; font-size: 70px !important; font-weight: bold; }
-    .active-row { background-color: #333300; border: 2px solid #ffff00; border-radius: 8px; font-weight: bold; padding: 10px; }
-    .schedule-row { padding: 8px; border-bottom: 1px solid #444; color: #ccc; }
+    /* ヘッダーと余白を削除 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .block-container {padding-top: 1rem; padding-bottom: 0rem;}
+    
+    /* メイン指標のボックス */
+    .metric-box {
+        background-color: #1e1e1e;
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .label { font-size: 14px; color: #aaa; margin-bottom: -10px; }
+    .val-temp { color: #00ff00; font-size: 55px; font-weight: bold; }
+    .val-time { color: #ff4b4b; font-size: 55px; font-weight: bold; }
+    
+    /* スケジュール表のコンパクト化 */
+    .sched-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* 2列表示 */
+        gap: 4px;
+        font-size: 13px;
+    }
+    .sched-item {
+        padding: 4px 8px;
+        background: #2b2b2b;
+        border-radius: 4px;
+        color: #ddd;
+        border: 1px solid #444;
+    }
+    .active {
+        background: #444400;
+        border: 2px solid #ffff00;
+        color: #fff;
+        font-weight: bold;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🔥 Roast Assistant")
+# --- 状態管理 ---
+if 'start_time' not in st.session_state: st.session_state.start_time = None
+if 'running' not in st.session_state: st.session_state.running = False
+if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
 
-# --- サイドバー設定 ---
-selected_name = st.sidebar.selectbox("プロファイル切替", list(PROFILES.keys()))
+# プロファイル選択をサイドバーではなくメイン上部にコンパクトに配置
+selected_name = st.selectbox("", list(PROFILES.keys()), label_visibility="collapsed")
 temps = PROFILES[selected_name]
 
-# --- 状態管理 ---
-if 'start_time' not in st.session_state:
-    st.session_state.start_time = None
-if 'running' not in st.session_state:
-    st.session_state.running = False
-if 'last_alert_min' not in st.session_state:
-    st.session_state.last_alert_min = -1
-
-# --- 操作ボタン ---
-# スマホで音を出すために、何らかのボタンを最低1回押す必要があります
-st.info("⚠️ スマホの場合、開始ボタンを押すことで音が許可されます。")
-
+# 操作ボタン
 c1, c2 = st.columns(2)
 with c1:
-    if st.button("🚀 焙煎開始 (音を許可)", use_container_width=True):
+    if st.button("🚀 START", use_container_width=True):
         st.session_state.start_time = time.time()
         st.session_state.running = True
         st.session_state.last_alert_min = -1
-        play_sound_js() # 開始時に一度鳴らしてブラウザの許可を取る
+        play_sound_js()
 with c2:
-    if st.button("⏹️ リセット", use_container_width=True):
+    if st.button("⏹️ RESET", use_container_width=True):
         st.session_state.start_time = None
         st.session_state.running = False
 
 # --- メイン表示エリア ---
-main_display = st.empty()
-schedule_display = st.empty()
+display_slot = st.empty()
 
 while st.session_state.running:
     elapsed_sec = int(time.time() - st.session_state.start_time)
-    minutes = elapsed_sec // 60
-    seconds = elapsed_sec % 60
+    mins, secs = divmod(elapsed_sec, 60)
     
-    # 1分ごとに音を鳴らすロジック
-    if minutes > st.session_state.last_alert_min:
+    if mins > st.session_state.last_alert_min:
         play_sound_js()
-        st.session_state.last_alert_min = minutes
+        st.session_state.last_alert_min = mins
 
-    # 表示用データ
-    countdown_sec = 60 - seconds
-    curr_target = temps[minutes] if minutes < len(temps) else temps[-1]
-    
-    with main_display.container():
-        col_l, col_r = st.columns(2)
-        with col_l:
-            st.markdown(f'<div class="metric-container">予定温度<br><span class="target-temp">{curr_target}℃</span></div>', unsafe_allow_html=True)
-        with col_r:
-            st.markdown(f'<div class="metric-container">次まであと<br><span class="countdown">{countdown_sec}s</span></div>', unsafe_allow_html=True)
-        st.write(f"⏱ **経過時間: {minutes:02d}:{seconds:02d}**")
+    target_t = temps[mins] if mins < len(temps) else temps[-1]
+    countdown = 60 - secs
 
-    with schedule_display.container():
-        st.write("---")
-        st.subheader("全体スケジュール")
+    with display_slot.container():
+        # 上段：メインメトリクス
+        m1, m2 = st.columns(2)
+        with m1:
+            st.markdown(f'<div class="metric-box"><p class="label">目標温度</p><span class="val-temp">{target_t}℃</span></div>', unsafe_allow_html=True)
+        with m2:
+            st.markdown(f'<div class="metric-box"><p class="label">次まで</p><span class="val-time">{countdown}s</span></div>', unsafe_allow_html=True)
+        
+        st.write(f"⏱ **経過時間: {mins:02d}:{secs:02d}**")
+
+        # 下段：スケジュール（2列グリッド）
+        st.markdown('<div class="sched-grid">', unsafe_allow_html=True)
+        html_sched = ""
         for i, t in enumerate(temps):
-            active_class = "active-row" if i == minutes else ""
-            mark = " 👈 今ここ" if i == minutes else ""
-            st.markdown(f'<div class="schedule-row {active_class}">{i}分目： {t} ℃{mark}</div>', unsafe_allow_html=True)
-
-    time.sleep(1)
+            active_class = "active" if i == mins else ""
