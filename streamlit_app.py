@@ -34,8 +34,8 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
     .label { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-    .value-temp { font-size: 5rem; color: #00ffcc; font-weight: 800; text-shadow: 0 0 20px rgba(0,255,204,0.5); line-height: 1.1; }
-    .value-count { font-size: 5rem; color: #ff3366; font-weight: 800; text-shadow: 0 0 20px rgba(255,51,102,0.5); line-height: 1.1; }
+    .value-temp { font-size: 15rem; color: #00ffcc; font-weight: 800; text-shadow: 0 0 20px rgba(0,255,204,0.5); line-height: 1.1; }
+    .value-count { font-size: 15rem; color: #ff3366; font-weight: 800; text-shadow: 0 0 20px rgba(255,51,102,0.5); line-height: 1.1; }
     
     /* スケジュールアイテム */
     .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 20px; }
@@ -133,3 +133,4 @@ if st.session_state.running:
 else:
     # 停止中の表示
     render_display(0, 0, False)
+
