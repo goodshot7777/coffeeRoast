@@ -100,4 +100,60 @@ with btn_col:
             play_sound_js()
     else:
         if st.button("⏹ STOP", use_container_width=True):
-            st.session_state.running =
+            st.session_state.running = False
+
+st.markdown("<hr>", unsafe_allow_html=True)
+
+# --- メイン表示エリア ---
+display_placeholder = st.empty()
+
+def render(min_c, sec_c, is_running):
+    target = temps[min_c] if min_c < len(temps) else temps[-1]
+    next_in = 60 - sec_c
+    prog = sec_c / 60.0
+
+    with display_placeholder.container():
+        # 上段
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f'''<div class="status-box">
+                <div class="label-text">TARGET TEMP</div>
+                <div class="main-value color-temp">{target}℃</div>
+            </div>''', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'''<div class="status-box">
+                <div class="label-text">NEXT MEASURE</div>
+                <div class="main-value color-next">{next_in}s</div>
+            </div>''', unsafe_allow_html=True)
+        
+        st.progress(prog)
+        
+        # 中段
+        st.markdown(f'''<div class="status-box" style="margin-top:10px; border-color: #ffffff;">
+            <div class="label-text">ELAPSED TIME</div>
+            <div class="main-value color-elapsed">{min_c:02d}:{sec_c:02d}</div>
+        </div>''', unsafe_allow_html=True)
+
+        # 下段：スケジュール（高コントラスト版）
+        sched_html = '<div class="sched-grid">'
+        for i, t in enumerate(temps):
+            active_class = "sched-active" if i == min_c and is_running else ""
+            sched_html += f'<div class="sched-item {active_class}">{i}m<br>{t}℃</div>'
+        sched_html += '</div>'
+        st.markdown(sched_html, unsafe_allow_html=True)
+
+# 実行制御
+if st.session_state.running:
+    while st.session_state.running:
+        elapsed = int(time.time() - st.session_state.start_time)
+        m, s = elapsed // 60, elapsed % 60
+        
+        if m > st.session_state.last_alert_min:
+            play_sound_js()
+            st.session_state.last_alert_min = m
+            
+        render(m, s, True)
+        time.sleep(0.5)
+        if m >= len(temps): break
+else:
+    render(0, 0, False)
