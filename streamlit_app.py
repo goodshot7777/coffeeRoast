@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 
-# --- 1. 設定 & プロファイル ---
+# --- プロファイル設定 ---
 PROFILES = {
     "フルシティ": [180, 75, 95, 110, 125, 140, 155, 170, 185, 195, 205, 210, 220, 225],
     "シティー": [180, 75, 95, 115, 130, 145, 160, 175, 190, 200, 210, 215],
@@ -10,117 +10,167 @@ PROFILES = {
 }
 
 def play_sound_js():
-    # 音を鳴らすJavaScript
     st.components.v1.html(
         """<script>var audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');audio.play();</script>""",
         height=0,
     )
 
-# --- 2. ページ構成 & UIデザイン (CSS) ---
+# ページ設定：マージンを最小化
 st.set_page_config(page_title="Roast Timer", layout="centered")
 
 st.markdown("""
     <style>
-    /* 余白を徹底的に排除 */
-    .main .block-container { padding: 0.5rem !important; }
+    /* 全体の余白削除 */
+    .main .block-container { padding: 0.5rem 1rem !important; }
+    header { visibility: hidden; }
     [data-testid="stHeader"] { display: none; }
     
-    /* 視認性重視のカードデザイン */
-    .timer-box {
+    /* 巨大テキストの設定 */
+    .timer-card {
         text-align: center;
         background: #000;
-        border-radius: 12px;
-        padding: 5px;
-        margin-bottom: 5px;
-        border: 1px solid #333;
+        border-radius: 15px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 2px solid #333;
     }
-    .label { font-size: 0.9rem; color: #888; margin: 0; }
+    .label { font-size: 1.2rem; color: #aaa; margin-bottom: 0; }
     
-    /* 文字サイズ：vw（画面幅）を使ってスマホ全画面に対応 */
-    .val-countdown { font-size: 28vw; font-weight: 900; color: #ff3366; line-height: 1; font-family: monospace; }
-    .val-elapsed { font-size: 14vw; font-weight: 700; color: #fff; line-height: 1; }
-    .val-temp { font-size: 14vw; font-weight: 700; color: #00ffcc; line-height: 1; }
+    /* カウントダウン（秒）を最大に */
+    .countdown-value {
+        font-size: 25vw; /* 画面幅の25% */
+        font-weight: 900;
+        color: #ff3366;
+        line-height: 1;
+        font-family: 'Courier New', monospace;
+    }
     
-    /* 進捗グリッド */
-    .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
-    .item { font-size: 0.6rem; background: #111; color: #444; padding: 2px; border-radius: 2px; text-align: center; }
-    .active { background: #00ffcc; color: #000; font-weight: bold; }
+    /* 経過時間を次に大きく */
+    .elapsed-value {
+        font-size: 15vw;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1;
+    }
+
+    /* ターゲット温度 */
+    .temp-value {
+        font-size: 12vw;
+        font-weight: 700;
+        color: #00ffcc;
+    }
+
+    /* プロファイルグリッドをさらに凝縮 */
+    .mini-grid { 
+        display: grid; 
+        grid-template-columns: repeat(6, 1fr); 
+        gap: 2px; 
+        margin-top: 5px; 
+    }
+    .mini-item {
+        font-size: 0.6rem; 
+        background: #111; 
+        color: #555;
+        padding: 2px; 
+        border-radius: 2px; 
+        text-align: center;
+    }
+    .mini-active { 
+        background: #00ffcc; 
+        color: #000; 
+        font-weight: bold; 
+    }
     
-    /* ボタンを押しやすく */
-    div.stButton > button { height: 4rem !important; font-size: 1.5rem !important; width: 100%; }
+    /* ボタンの高さ調整 */
+    div.stButton > button { 
+        height: 4rem !important; 
+        font-size: 1.5rem !important; 
+        font-weight: bold !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. セッション状態の管理 ---
 if 'start_time' not in st.session_state: st.session_state.start_time = None
 if 'running' not in st.session_state: st.session_state.running = False
 if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
 
-# --- 4. 操作パネル ---
+# --- レイアウト ---
+# 1. 選択と操作
 c1, c2 = st.columns([2, 1])
 with c1:
-    selected = st.selectbox("Select Profile", list(PROFILES.keys()), label_visibility="collapsed")
-    temps = PROFILES[selected]
+    selected_name = st.selectbox("P", list(PROFILES.keys()), label_visibility="collapsed")
+    temps = PROFILES[selected_name]
 with c2:
     if not st.session_state.running:
-        if st.button("START"):
+        if st.button("GO", use_container_width=True, type="primary"):
             st.session_state.start_time = time.time()
             st.session_state.running = True
-            st.session_state.last_alert_min = -1
             st.rerun()
     else:
-        if st.button("RESET"):
+        if st.button("STOP", use_container_width=True):
             st.session_state.running = False
+            st.session_state.start_time = None
             st.rerun()
 
-# --- 5. メイン表示関数 ---
-def render_display(elapsed_sec):
+# 2. メイン表示エリア
+placeholder = st.empty()
+
+def render_ui(elapsed_sec, running):
     min_curr = elapsed_sec // 60
     sec_curr = elapsed_sec % 60
     countdown = 60 - sec_curr
     curr_target = temps[min_curr] if min_curr < len(temps) else temps[-1]
-    
-    # 巨大なカウントダウン
-    st.markdown(f'<div class="timer-box"><p class="label">NEXT STEP</p><p class="val-countdown">{countdown:02d}</p></div>', unsafe_allow_html=True)
-    
-    # 経過時間とターゲット
-    col_l, col_r = st.columns(2)
-    with col_l:
-        st.markdown(f'<div class="timer-box"><p class="label">ELAPSED</p><p class="val-elapsed">{min_curr:02d}:{sec_curr:02d}</p></div>', unsafe_allow_html=True)
-    with col_r:
-        st.markdown(f'<div class="timer-box"><p class="label">TARGET</p><p class="val-temp">{curr_target}°</p></div>', unsafe_allow_html=True)
-    
-    # 小型グリッド
-    grid_html = '<div class="grid">'
-    for i, t in enumerate(temps):
-        status = "active" if i == min_curr and st.session_state.running else ""
-        grid_html += f'<div class="item {status}">{i}m<br>{t}</div>'
-    grid_html += '</div>'
-    st.markdown(grid_html, unsafe_allow_html=True)
 
-# --- 6. 実行ループ ---
-display_area = st.empty()
+    with placeholder.container():
+        # カウントダウン（あと何秒で次の温度か）
+        st.markdown(f'''
+            <div class="timer-card">
+                <p class="label">NEXT STEP</p>
+                <p class="countdown-value">{countdown}s</p>
+            </div>
+        ''', unsafe_allow_html=True)
 
+        # 経過時間とターゲット温度の並び
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(f'''
+                <div class="timer-card">
+                    <p class="label">ELAPSED</p>
+                    <p class="elapsed-value">{min_curr:02d}:{sec_curr:02d}</p>
+                </div>
+            ''', unsafe_allow_html=True)
+        with col_b:
+            st.markdown(f'''
+                <div class="timer-card">
+                    <p class="label">TARGET</p>
+                    <p class="temp-value">{curr_target}°</p>
+                </div>
+            ''', unsafe_allow_html=True)
+
+        # 進捗グリッド（さらに小型化）
+        html_grid = '<div class="mini-grid">'
+        for i, t in enumerate(temps):
+            active = "mini-active" if i == min_curr and running else ""
+            html_grid += f'<div class="mini-item {active}">{i}m<br>{t}</div>'
+        html_grid += '</div>'
+        st.markdown(html_grid, unsafe_allow_html=True)
+
+# 実行制御
 if st.session_state.running:
     while st.session_state.running:
-        now = time.time()
-        elapsed = int(now - st.session_state.start_time)
+        elapsed = int(time.time() - st.session_state.start_time)
         min_curr = elapsed // 60
         
-        # 1分ごとの音通知
+        # 1分ごとのアラート
         if min_curr > st.session_state.last_alert_min:
             play_sound_js()
             st.session_state.last_alert_min = min_curr
-            
-        with display_area.container():
-            render_display(elapsed)
-            
+        
+        render_ui(elapsed, True)
+        time.sleep(1)
+        
         if min_curr >= len(temps):
             st.session_state.running = False
-            st.success("焙煎完了！")
-            break
-            
-        time.sleep(0.5) # 更新頻度を上げてスムーズに
+            st.rerun()
 else:
-    with display_area.container():
-        render_display(0)
+    render_ui(0, False)
