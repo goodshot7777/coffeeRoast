@@ -34,8 +34,10 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
     .label { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-    .value-temp { font-size: 25rem; color: #00ffcc; font-weight: 800; text-shadow: 0 0 20px rgba(0,255,204,0.5); line-height: 1.1; }
-    .value-count { font-size: 25rem; color: #ff3366; font-weight: 800; text-shadow: 0 0 20px rgba(255,51,102,0.5); line-height: 1.1; }
+    
+    /* 文字サイズを h2 (ELAPSED) 相当の 1.5rem に変更 */
+    .value-temp { font-size: 1.5rem; color: #00ffcc; font-weight: 800; text-shadow: 0 0 10px rgba(0,255,204,0.5); line-height: 1.2; }
+    .value-count { font-size: 1.5rem; color: #ff3366; font-weight: 800; text-shadow: 0 0 10px rgba(255,51,102,0.5); line-height: 1.2; }
     
     /* スケジュールアイテム */
     .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 20px; }
@@ -103,7 +105,7 @@ def render_display(min_curr, sec_curr, running):
         st.write("")
         st.progress(progress)
         
-        # 経過時間表示
+        # 経過時間表示 (h2タグを使用)
         st.markdown(f"<h2 style='text-align: center; color: #fff;'>ELAPSED: {min_curr:02d}:{sec_curr:02d}</h2>", unsafe_allow_html=True)
         
         st.markdown("<hr>", unsafe_allow_html=True)
@@ -128,10 +130,8 @@ if st.session_state.running:
             st.session_state.last_alert_min = min_curr
             
         render_display(min_curr, sec_curr, True)
-        time.sleep(0.5) # 更新頻度を少し上げてスムーズに
+        time.sleep(0.5) 
         if min_curr >= len(temps): break
 else:
     # 停止中の表示
     render_display(0, 0, False)
-
-
