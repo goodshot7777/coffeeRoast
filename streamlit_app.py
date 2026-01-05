@@ -15,98 +15,51 @@ def play_sound_js():
         height=0,
     )
 
-# スマホ向けに余白を極限までカット
 st.set_page_config(page_title="Roast Cockpit", layout="centered")
 
+# --- スマホ・一画面完結型CSS ---
 st.markdown("""
     <style>
-    /* スマホ画面の上下余白をゼロにする */
-    .main .block-container { padding: 0.5rem 1rem; }
+    /* 全体背景と余白の除去 */
+    .stApp { background-color: #000000; }
+    .main .block-container { padding: 0.2rem 0.5rem; }
     header { visibility: hidden; }
+    [data-testid="stHeader"] { background: rgba(0,0,0,0); }
     
-    /* 巨大な数値表示 */
-    .hero-container { text-align: center; margin: 0.5rem 0; }
-    .hero-label { font-size: 0.8rem; color: #888; margin-bottom: -10px; }
-    .hero-value-temp { font-size: 6.5rem; color: #00ffcc; font-weight: 900; line-height: 1; }
-    .hero-value-count { font-size: 5.5rem; color: #ff3366; font-weight: 900; line-height: 1; }
+    /* 数値エリアのスタイリング */
+    .display-unit { text-align: center; margin-bottom: -10px; }
+    .label-text { font-size: 1rem; color: #ffffff; font-weight: bold; margin-bottom: -5px; }
     
-    /* スケジュールの超コンパクト表示 */
-    .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 10px; }
-    .mini-item {
-        font-size: 0.65rem; background: #1a1a1a; color: #444;
-        padding: 2px; border-radius: 4px; text-align: center; border: 1px solid #222;
+    /* ターゲット温度：蛍光イエローで最大化 */
+    .val-temp { 
+        font-size: 28vw; /* 画面幅に対して最大化 */
+        color: #ffff00; 
+        font-weight: 900; 
+        line-height: 1;
+        text-shadow: 0 0 15px rgba(255, 255, 0, 0.4);
     }
-    .mini-active { background: #00ffcc; color: #000; font-weight: bold; border-color: #fff; }
     
-    /* ボタンを少し小さく */
-    div.stButton > button { height: 3rem; font-size: 1.2rem !important; }
+    /* カウントダウン：オレンジで最大化 */
+    .val-count { 
+        font-size: 24vw; 
+        color: #ff6600; 
+        font-weight: 900; 
+        line-height: 0.9;
+        text-shadow: 0 0 15px rgba(255, 102, 0, 0.4);
+    }
+
+    /* 下部スケジュール一覧の視認性向上 */
+    .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 5px; }
+    .mini-item {
+        font-size: 0.7rem; background: #333333; color: #ffffff; /* グレー背景に白文字で視認性UP */
+        padding: 4px 0; border-radius: 4px; text-align: center;
+    }
+    .mini-active { 
+        background: #ffffff; color: #000000; font-weight: 900; 
+        box-shadow: 0 0 10px #ffffff;
+    }
+    
+    /* セレクトボックスとボタンの調整 */
+    .stSelectbox div { font-size: 1rem !important; }
     </style>
 """, unsafe_allow_html=True)
-
-if 'start_time' not in st.session_state: st.session_state.start_time = None
-if 'running' not in st.session_state: st.session_state.running = False
-if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
-
-# --- 操作エリア（1行に凝縮） ---
-c_nav1, c_nav2 = st.columns([3, 2])
-with c_nav1:
-    selected_name = st.selectbox("P", list(PROFILES.keys()), label_visibility="collapsed")
-    temps = PROFILES[selected_name]
-with c_nav2:
-    if not st.session_state.running:
-        if st.button("START", use_container_width=True, type="primary"):
-            st.session_state.start_time = time.time()
-            st.session_state.running = True
-    else:
-        if st.button("RESET", use_container_width=True):
-            st.session_state.running = False
-            st.session_state.start_time = None
-
-# --- メインディスプレイ ---
-placeholder = st.empty()
-
-def render_mobile(min_curr, sec_curr, running):
-    curr_target = temps[min_curr] if min_curr < len(temps) else temps[-1]
-    countdown = 60 - sec_curr
-    
-    with placeholder.container():
-        # メインターゲット温度
-        st.markdown(f'''
-            <div class="hero-container">
-                <p class="hero-label">TARGET TEMP</p>
-                <p class="hero-value-temp">{curr_target}°</p>
-            </div>
-        ''', unsafe_allow_html=True)
-        
-        # カウントダウン
-        st.markdown(f'''
-            <div class="hero-container">
-                <p class="hero-label">COUNTDOWN</p>
-                <p class="hero-value-count">{countdown}s</p>
-            </div>
-        ''', unsafe_allow_html=True)
-        
-        # 経過時間
-        st.markdown(f"<p style='text-align: center; color: #fff; margin:0;'>ELAPSED: {min_curr:02d}:{sec_curr:02d}</p>", unsafe_allow_html=True)
-        
-        # コンパクトな進捗管理（5列のミニチップ）
-        html_grid = '<div class="mini-grid">'
-        for i, t in enumerate(temps):
-            active_class = "mini-active" if i == min_curr and running else ""
-            html_grid += f'<div class="mini-item {active_class}">{i}m<br>{t}</div>'
-        html_grid += '</div>'
-        st.markdown(html_grid, unsafe_allow_html=True)
-
-if st.session_state.running:
-    while st.session_state.running:
-        elapsed = int(time.time() - st.session_state.start_time)
-        min_curr = elapsed // 60
-        sec_curr = elapsed % 60
-        if min_curr > st.session_state.last_alert_min:
-            play_sound_js()
-            st.session_state.last_alert_min = min_curr
-        render_mobile(min_curr, sec_curr, True)
-        time.sleep(1)
-        if min_curr >= len(temps): break
-else:
-    render_mobile(0, 0, False)
