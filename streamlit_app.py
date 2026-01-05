@@ -22,25 +22,32 @@ st.markdown("""
     <style>
     /* 背景と全体の調整 */
     .stApp { background-color: #050505; }
-    .main .block-container { padding-top: 2rem; }
+    .main .block-container { padding-top: 1rem; }
     
     /* ステータスカード */
     .status-card {
         background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
         border: 1px solid #333;
-        border-radius: 15px;
-        padding: 20px;
+        border-radius: 12px;
+        padding: 15px 10px;
         text-align: center;
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
-    .label { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+    .label { font-size: 0.8rem; color: #aaa; text-transform: uppercase; margin-bottom: 5px; }
     
-    /* 文字サイズを h2 (ELAPSED) 相当の 1.5rem に変更 */
-    .value-temp { font-size: 1.5rem; color: #00ffcc; font-weight: 800; text-shadow: 0 0 10px rgba(0,255,204,0.5); line-height: 1.2; }
-    .value-count { font-size: 1.5rem; color: #ff3366; font-weight: 800; text-shadow: 0 0 10px rgba(255,51,102,0.5); line-height: 1.2; }
+    /* ELAPSEDの文字サイズ (h2) と統一 */
+    .value-temp { font-size: 2.2rem; color: #00ffcc; font-weight: 800; line-height: 1; }
+    .value-count { font-size: 2.2rem; color: #ff3366; font-weight: 800; line-height: 1; }
+    
+    /* ELAPSED表示用のh2タグを上記と統一 */
+    h2 { 
+        font-size: 2.2rem !important; 
+        font-weight: 800 !important; 
+        margin-top: 10px !important;
+    }
     
     /* スケジュールアイテム */
-    .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 20px; }
+    .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-top: 20px; }
     .sched-item {
         background: #151515;
         border: 1px solid #222;
@@ -49,17 +56,16 @@ st.markdown("""
         font-family: monospace;
         color: #666;
         text-align: center;
+        font-size: 0.8rem;
     }
     .sched-active {
         background: #00ffcc22;
         border: 1px solid #00ffcc;
         color: #00ffcc;
         font-weight: bold;
-        box-shadow: 0 0 10px rgba(0,255,204,0.3);
     }
     
-    /* 水平線のカスタム */
-    hr { border: 0; height: 1px; background: #333; margin: 2rem 0; }
+    hr { border: 0; height: 1px; background: #333; margin: 1.5rem 0; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -68,22 +74,21 @@ if 'start_time' not in st.session_state: st.session_state.start_time = None
 if 'running' not in st.session_state: st.session_state.running = False
 if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
 
-# --- ヘッダー・設定エリア ---
-col_h1, col_h2, col_h3 = st.columns([2, 1, 1])
+# --- ヘッダー ---
+col_h1, col_h2 = st.columns([2, 1])
 with col_h1:
     selected_name = st.selectbox("SELECT PROFILE", list(PROFILES.keys()), label_visibility="collapsed")
     temps = PROFILES[selected_name]
 with col_h2:
     if not st.session_state.running:
-        if st.button("▶ START ROASTING", use_container_width=True, type="primary"):
+        if st.button("▶ START", use_container_width=True, type="primary"):
             st.session_state.start_time = time.time()
             st.session_state.running = True
             st.session_state.last_alert_min = -1
             play_sound_js()
     else:
-        if st.button("⏹ STOP / RESET", use_container_width=True):
+        if st.button("⏹ STOP", use_container_width=True):
             st.session_state.running = False
-            st.session_state.start_time = None
 
 # --- メインディスプレイ ---
 placeholder = st.empty()
@@ -94,23 +99,20 @@ def render_display(min_curr, sec_curr, running):
     progress = sec_curr / 60.0
 
     with placeholder.container():
-        # メイン数値
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f'<div class="status-card"><p class="label">Target Temperature</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-card"><p class="label">TARGET</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
         with c2:
-            st.markdown(f'<div class="status-card"><p class="label">Next Measure In</p><p class="value-count">{countdown}s</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-card"><p class="label">NEXT IN</p><p class="value-count">{countdown}s</p></div>', unsafe_allow_html=True)
         
-        # プログレスバー（視覚的な経過）
         st.write("")
         st.progress(progress)
         
-        # 経過時間表示 (h2タグを使用)
+        # ELAPSED表示（CSSで2.2remに固定済み）
         st.markdown(f"<h2 style='text-align: center; color: #fff;'>ELAPSED: {min_curr:02d}:{sec_curr:02d}</h2>", unsafe_allow_html=True)
         
         st.markdown("<hr>", unsafe_allow_html=True)
         
-        # スケジュールグリッド
         sched_html = '<div class="sched-grid">'
         for i, t in enumerate(temps):
             active_class = "sched-active" if i == min_curr and running else ""
@@ -118,20 +120,17 @@ def render_display(min_curr, sec_curr, running):
         sched_html += '</div>'
         st.markdown(sched_html, unsafe_allow_html=True)
 
-# 実行中のループ
+# ループ処理
 if st.session_state.running:
     while st.session_state.running:
         elapsed = int(time.time() - st.session_state.start_time)
         min_curr = elapsed // 60
         sec_curr = elapsed % 60
-        
         if min_curr > st.session_state.last_alert_min:
             play_sound_js()
             st.session_state.last_alert_min = min_curr
-            
         render_display(min_curr, sec_curr, True)
-        time.sleep(0.5) 
+        time.sleep(0.5)
         if min_curr >= len(temps): break
 else:
-    # 停止中の表示
     render_display(0, 0, False)
