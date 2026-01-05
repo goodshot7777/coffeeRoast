@@ -15,21 +15,49 @@ def play_sound_js():
         height=0,
     )
 
-st.set_page_config(page_title="Roast Cockpit", layout="wide")
+st.set_page_config(page_title="Roast Cockpit Neo", layout="wide")
 
-# --- 1画面に収めるための専用CSS ---
+# --- スタイリッシュなCSSデザイン ---
 st.markdown("""
     <style>
-    /* 全体の余白を削る */
-    .main .block-container { padding-top: 1rem; padding-bottom: 1rem; }
-    /* メトリックボックス */
-    .status-box { background-color: #0e1117; border: 2px solid #333; border-radius: 10px; padding: 10px; text-align: center; }
-    .label { font-size: 1.2rem; color: #888; margin-bottom: 0px; }
-    .value-temp { font-size: 5.5rem; color: #00ff00; font-weight: bold; line-height: 1; }
-    .value-count { font-size: 5.5rem; color: #ff4b4b; font-weight: bold; line-height: 1; }
-    /* スケジュールリストをコンパクトに */
-    .sched-item { font-size: 0.9rem; padding: 2px 10px; border-radius: 5px; margin: 2px 0; border-left: 3px solid #444; color: #888; }
-    .sched-active { background-color: #1f1f00; border-left: 5px solid #ffff00; color: #fff; font-weight: bold; font-size: 1.1rem; }
+    /* 背景と全体の調整 */
+    .stApp { background-color: #050505; }
+    .main .block-container { padding-top: 2rem; }
+    
+    /* ステータスカード */
+    .status-card {
+        background: linear-gradient(145deg, #1a1a1a, #0d0d0d);
+        border: 1px solid #333;
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+    .label { font-size: 0.9rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+    .value-temp { font-size: 5rem; color: #00ffcc; font-weight: 800; text-shadow: 0 0 20px rgba(0,255,204,0.5); line-height: 1.1; }
+    .value-count { font-size: 5rem; color: #ff3366; font-weight: 800; text-shadow: 0 0 20px rgba(255,51,102,0.5); line-height: 1.1; }
+    
+    /* スケジュールアイテム */
+    .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 20px; }
+    .sched-item {
+        background: #151515;
+        border: 1px solid #222;
+        padding: 8px;
+        border-radius: 8px;
+        font-family: monospace;
+        color: #666;
+        text-align: center;
+    }
+    .sched-active {
+        background: #00ffcc22;
+        border: 1px solid #00ffcc;
+        color: #00ffcc;
+        font-weight: bold;
+        box-shadow: 0 0 10px rgba(0,255,204,0.3);
+    }
+    
+    /* 水平線のカスタム */
+    hr { border: 0; height: 1px; background: #333; margin: 2rem 0; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -39,64 +67,69 @@ if 'running' not in st.session_state: st.session_state.running = False
 if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
 
 # --- ヘッダー・設定エリア ---
-col_head1, col_head2 = st.columns([2, 1])
-with col_head1:
-    selected_name = st.selectbox("Profile", list(PROFILES.keys()), label_visibility="collapsed")
+col_h1, col_h2, col_h3 = st.columns([2, 1, 1])
+with col_h1:
+    selected_name = st.selectbox("SELECT PROFILE", list(PROFILES.keys()), label_visibility="collapsed")
     temps = PROFILES[selected_name]
-with col_head2:
+with col_h2:
     if not st.session_state.running:
-        if st.button("🚀 START", use_container_width=True):
+        if st.button("▶ START ROASTING", use_container_width=True, type="primary"):
             st.session_state.start_time = time.time()
             st.session_state.running = True
+            st.session_state.last_alert_min = -1
             play_sound_js()
     else:
-        if st.button("⏹️ RESET", use_container_width=True):
-            st.session_state.start_time = None
+        if st.button("⏹ STOP / RESET", use_container_width=True):
             st.session_state.running = False
+            st.session_state.start_time = None
 
-# --- メインコックピット表示 ---
+# --- メインディスプレイ ---
 placeholder = st.empty()
 
-while st.session_state.running:
-    elapsed = int(time.time() - st.session_state.start_time)
-    min_curr = elapsed // 60
-    sec_curr = elapsed % 60
-    
-    # 1分ごとのアラート
-    if min_curr > st.session_state.last_alert_min:
-        play_sound_js()
-        st.session_state.last_alert_min = min_curr
-
+def render_display(min_curr, sec_curr, running):
     curr_target = temps[min_curr] if min_curr < len(temps) else temps[-1]
     countdown = 60 - sec_curr
+    progress = sec_curr / 60.0
 
     with placeholder.container():
-        # メインの数字エリア
+        # メイン数値
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f'<div class="status-box"><p class="label">次計測で狙う温度</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-card"><p class="label">Target Temperature</p><p class="value-temp">{curr_target}℃</p></div>', unsafe_allow_html=True)
         with c2:
-            st.markdown(f'<div class="status-box"><p class="label">計測まであと</p><p class="value-count">{countdown}s</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-card"><p class="label">Next Measure In</p><p class="value-count">{countdown}s</p></div>', unsafe_allow_html=True)
         
-        st.markdown(f"**🕒 経過時間: {min_curr:02d}:{sec_curr:02d}**")
+        # プログレスバー（視覚的な経過）
+        st.write("")
+        st.progress(progress)
         
-        # スケジュールを2列で表示（1画面に収めるため）
-        st.write("---")
-        col_list1, col_list2 = st.columns(2)
+        # 経過時間表示
+        st.markdown(f"<h2 style='text-align: center; color: #fff;'>ELAPSED: {min_curr:02d}:{sec_curr:02d}</h2>", unsafe_allow_html=True)
+        
+        st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # スケジュールグリッド
+        sched_html = '<div class="sched-grid">'
         for i, t in enumerate(temps):
-            active_class = "sched-active" if i == min_curr else ""
-            target_col = col_list1 if i < 7 else col_list2
-            target_col.markdown(f'<div class="sched-item {active_class}">{i}min: {t}℃</div>', unsafe_allow_html=True)
+            active_class = "sched-active" if i == min_curr and running else ""
+            sched_html += f'<div class="sched-item {active_class}">{i}m<br>{t}℃</div>'
+        sched_html += '</div>'
+        st.markdown(sched_html, unsafe_allow_html=True)
 
-    time.sleep(1)
-
-if not st.session_state.running:
-    st.write("準備ができたらSTARTを押してください。")
-    # 停止中もスケジュールだけは見せる
-    col_list1, col_list2 = st.columns(2)
-    for i, t in enumerate(temps):
-        target_col = col_list1 if i < 7 else col_list2
-        target_col.markdown(f'<div class="sched-item">{i}min: {t}℃</div>', unsafe_allow_html=True)
-
-
-
+# 実行中のループ
+if st.session_state.running:
+    while st.session_state.running:
+        elapsed = int(time.time() - st.session_state.start_time)
+        min_curr = elapsed // 60
+        sec_curr = elapsed % 60
+        
+        if min_curr > st.session_state.last_alert_min:
+            play_sound_js()
+            st.session_state.last_alert_min = min_curr
+            
+        render_display(min_curr, sec_curr, True)
+        time.sleep(0.5) # 更新頻度を少し上げてスムーズに
+        if min_curr >= len(temps): break
+else:
+    # 停止中の表示
+    render_display(0, 0, False)
