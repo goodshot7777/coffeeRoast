@@ -15,51 +15,123 @@ def play_sound_js():
         height=0,
     )
 
-st.set_page_config(page_title="Roast Cockpit", layout="centered")
+# ページ設定：マージンを最小化
+st.set_page_config(page_title="Roast Timer", layout="centered")
 
-# --- スマホ・一画面完結型CSS ---
 st.markdown("""
     <style>
-    /* 全体背景と余白の除去 */
-    .stApp { background-color: #000000; }
-    .main .block-container { padding: 0.2rem 0.5rem; }
+    /* 全体の余白削除 */
+    .main .block-container { padding: 0.5rem 1rem !important; }
     header { visibility: hidden; }
-    [data-testid="stHeader"] { background: rgba(0,0,0,0); }
+    [data-testid="stHeader"] { display: none; }
     
-    /* 数値エリアのスタイリング */
-    .display-unit { text-align: center; margin-bottom: -10px; }
-    .label-text { font-size: 1rem; color: #ffffff; font-weight: bold; margin-bottom: -5px; }
+    /* 巨大テキストの設定 */
+    .timer-card {
+        text-align: center;
+        background: #000;
+        border-radius: 15px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 2px solid #333;
+    }
+    .label { font-size: 1.2rem; color: #aaa; margin-bottom: 0; }
     
-    /* ターゲット温度：蛍光イエローで最大化 */
-    .val-temp { 
-        font-size: 28vw; /* 画面幅に対して最大化 */
-        color: #ffff00; 
-        font-weight: 900; 
+    /* カウントダウン（秒）を最大に */
+    .countdown-value {
+        font-size: 25vw; /* 画面幅の25% */
+        font-weight: 900;
+        color: #ff3366;
         line-height: 1;
-        text-shadow: 0 0 15px rgba(255, 255, 0, 0.4);
+        font-family: 'Courier New', monospace;
     }
     
-    /* カウントダウン：オレンジで最大化 */
-    .val-count { 
-        font-size: 24vw; 
-        color: #ff6600; 
-        font-weight: 900; 
-        line-height: 0.9;
-        text-shadow: 0 0 15px rgba(255, 102, 0, 0.4);
+    /* 経過時間を次に大きく */
+    .elapsed-value {
+        font-size: 15vw;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1;
     }
 
-    /* 下部スケジュール一覧の視認性向上 */
-    .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 5px; }
+    /* ターゲット温度 */
+    .temp-value {
+        font-size: 12vw;
+        font-weight: 700;
+        color: #00ffcc;
+    }
+
+    /* プロファイルグリッドをさらに凝縮 */
+    .mini-grid { 
+        display: grid; 
+        grid-template-columns: repeat(6, 1fr); 
+        gap: 2px; 
+        margin-top: 5px; 
+    }
     .mini-item {
-        font-size: 0.7rem; background: #333333; color: #ffffff; /* グレー背景に白文字で視認性UP */
-        padding: 4px 0; border-radius: 4px; text-align: center;
+        font-size: 0.6rem; 
+        background: #111; 
+        color: #555;
+        padding: 2px; 
+        border-radius: 2px; 
+        text-align: center;
     }
     .mini-active { 
-        background: #ffffff; color: #000000; font-weight: 900; 
-        box-shadow: 0 0 10px #ffffff;
+        background: #00ffcc; 
+        color: #000; 
+        font-weight: bold; 
     }
     
-    /* セレクトボックスとボタンの調整 */
-    .stSelectbox div { font-size: 1rem !important; }
+    /* ボタンの高さ調整 */
+    div.stButton > button { 
+        height: 4rem !important; 
+        font-size: 1.5rem !important; 
+        font-weight: bold !important;
+    }
     </style>
 """, unsafe_allow_html=True)
+
+if 'start_time' not in st.session_state: st.session_state.start_time = None
+if 'running' not in st.session_state: st.session_state.running = False
+if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
+
+# --- レイアウト ---
+# 1. 選択と操作
+c1, c2 = st.columns([2, 1])
+with c1:
+    selected_name = st.selectbox("P", list(PROFILES.keys()), label_visibility="collapsed")
+    temps = PROFILES[selected_name]
+with c2:
+    if not st.session_state.running:
+        if st.button("GO", use_container_width=True, type="primary"):
+            st.session_state.start_time = time.time()
+            st.session_state.running = True
+            st.rerun()
+    else:
+        if st.button("STOP", use_container_width=True):
+            st.session_state.running = False
+            st.session_state.start_time = None
+            st.rerun()
+
+# 2. メイン表示エリア
+placeholder = st.empty()
+
+def render_ui(elapsed_sec, running):
+    min_curr = elapsed_sec // 60
+    sec_curr = elapsed_sec % 60
+    countdown = 60 - sec_curr
+    curr_target = temps[min_curr] if min_curr < len(temps) else temps[-1]
+
+    with placeholder.container():
+        # カウントダウン（あと何秒で次の温度か）
+        st.markdown(f'''
+            <div class="timer-card">
+                <p class="label">NEXT STEP</p>
+                <p class="countdown-value">{countdown}s</p>
+            </div>
+        ''', unsafe_allow_html=True)
+
+        # 経過時間とターゲット温度の並び
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(f'''
+                <div class="timer-card">
