@@ -91,9 +91,7 @@ with sel_col:
     temps = PROFILES[selected_name]
 
 with btn_col:
-    # 状態に応じたボタンの出し分け
     if not st.session_state.running:
-        # 停止中
         if st.button("▶ START", use_container_width=True, type="primary"):
             st.session_state.running = True
             st.session_state.paused = False
@@ -112,7 +110,7 @@ with btn_col:
             else:
                 if st.button("▶ RESUME", use_container_width=True):
                     st.session_state.paused = False
-                    st.session_state.last_tick = time.time() # 再開した瞬間の時刻を記録
+                    st.session_state.last_tick = time.time()
                     st.rerun()
         with c_s:
             if st.button("⏹ STOP", use_container_width=True):
@@ -125,6 +123,7 @@ st.markdown("<hr>", unsafe_allow_html=True)
 # --- メイン表示エリア ---
 display_placeholder = st.empty()
 
+# 引数を (経過秒数, 実行フラグ) の2つに統一
 def render(total_sec, is_running):
     m_c = int(total_sec // 60)
     s_c = int(total_sec % 60)
@@ -154,7 +153,6 @@ def render(total_sec, is_running):
 
         sched_html = '<div class="sched-grid">'
         for i, t in enumerate(temps):
-            # 動作中かつ現在時刻の場合のみ黄色
             active_class = "sched-active" if i == m_c and is_running else ""
             sched_html += f'<div class="sched-item {active_class}">{i}m<br>{t}℃</div>'
         sched_html += '</div>'
@@ -165,23 +163,22 @@ if st.session_state.running:
     while st.session_state.running:
         if not st.session_state.paused:
             now = time.time()
-            # 前回のチェックからの経過分を加算
             st.session_state.total_elapsed += now - st.session_state.last_tick
             st.session_state.last_tick = now
             
-            # アラート判定
             m_now = int(st.session_state.total_elapsed // 60)
             if m_now > st.session_state.last_alert_min:
                 play_sound_js()
                 st.session_state.last_alert_min = m_now
         
+        # 正しい引数(2つ)で呼び出し
         render(st.session_state.total_elapsed, st.session_state.running)
         
-        # 終了判定
         if int(st.session_state.total_elapsed // 60) >= len(temps):
             st.session_state.running = False
             break
             
         time.sleep(0.2)
 else:
-    render(0, 0, False)
+    # ここがエラーの原因でした：render(0, 0, False) から 修正
+    render(0.0, False)
