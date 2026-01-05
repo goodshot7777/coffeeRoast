@@ -17,24 +17,24 @@ def play_sound_js():
 
 st.set_page_config(page_title="Roast Cockpit Neo", layout="wide")
 
-# --- カスタムCSS（デザイン一新） ---
+# --- 高コントラストCSSデザイン ---
 st.markdown("""
     <style>
-    .stApp { background-color: #0a0a0a; }
+    .stApp { background-color: #000000; }
     .main .block-container { padding-top: 1rem; max-width: 600px; }
     
-    /* 共通の数値スタイル（ここを調整すれば一括で変わります） */
+    /* 共通数値スタイル（サイズ統一） */
     .main-value {
         font-size: 2.5rem !important; 
-        font-weight: 800;
-        font-family: 'Courier New', Courier, monospace;
+        font-weight: 900;
+        font-family: 'Arial Black', sans-serif;
         line-height: 1.2;
         margin: 5px 0;
     }
     
     .status-box {
-        background: #151515;
-        border: 1px solid #333;
+        background: #111111;
+        border: 2px solid #ffffff;
         border-radius: 10px;
         padding: 15px;
         text-align: center;
@@ -42,37 +42,42 @@ st.markdown("""
     }
     
     .label-text {
-        font-size: 0.75rem;
-        color: #888;
-        letter-spacing: 2px;
+        font-size: 0.8rem;
+        color: #ffffff;
+        font-weight: bold;
+        letter-spacing: 1px;
         text-transform: uppercase;
     }
 
-    /* 各項目の色設定 */
-    .color-temp { color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.3); }
-    .color-next { color: #ff3366; text-shadow: 0 0 10px rgba(255,51,102,0.3); }
-    .color-elapsed { color: #ffffff; }
+    /* 各項目の色（高コントラスト設定） */
+    .color-temp { color: #00ffcc; } /* ターゲット温度：明るいシアン */
+    .color-next { color: #ff3366; } /* 次の計測：明るいピンク */
+    .color-elapsed { color: #ffffff; } /* 経過時間：白 */
 
-    /* スケジュール */
-    .sched-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 15px; }
+    /* スケジュールグリッド（ここを重点的に修正） */
+    .sched-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 20px; }
+    
+    /* 非アクティブ状態：黒背景に白文字・白枠 */
     .sched-item {
-        background: #111;
-        border: 1px solid #222;
-        padding: 5px;
-        border-radius: 5px;
-        font-size: 0.7rem;
-        color: #555;
+        background: #000000;
+        border: 2px solid #ffffff;
+        padding: 8px 5px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        color: #ffffff; /* 純粋な白に変更 */
         text-align: center;
+        font-weight: 800;
     }
+    
+    /* アクティブ状態：黄背景に黒文字（最高コントラスト） */
     .sched-active {
-        border-color: #00ffcc;
-        color: #00ffcc;
-        background: #00ffcc11;
+        background: #ffff00 !important;
+        border-color: #ffff00 !important;
+        color: #000000 !important;
+        box-shadow: 0 0 15px #ffff00;
     }
 
-    /* Streamlit標準要素の非表示・調整 */
-    div[data-testid="stMetricValue"] > div { font-size: 2.5rem !important; }
-    hr { border: 0; border-top: 1px solid #333; margin: 20px 0; }
+    hr { border: 0; border-top: 2px solid #ffffff; margin: 20px 0; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -95,61 +100,4 @@ with btn_col:
             play_sound_js()
     else:
         if st.button("⏹ STOP", use_container_width=True):
-            st.session_state.running = False
-
-st.markdown("<hr>", unsafe_allow_html=True)
-
-# --- メイン表示エリア ---
-display_placeholder = st.empty()
-
-def render(min_c, sec_c, is_running):
-    target = temps[min_c] if min_c < len(temps) else temps[-1]
-    next_in = 60 - sec_c
-    prog = sec_c / 60.0
-
-    with display_placeholder.container():
-        # 上段：Target と Next In
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(f'''<div class="status-box">
-                <div class="label-text">TARGET TEMP</div>
-                <div class="main-value color-temp">{target}℃</div>
-            </div>''', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'''<div class="status-box">
-                <div class="label-text">NEXT MEASURE</div>
-                <div class="main-value color-next">{next_in}s</div>
-            </div>''', unsafe_allow_html=True)
-        
-        # 中段：プログレスバー
-        st.progress(prog)
-        
-        # 中段：経過時間（ここも共通クラスを適用）
-        st.markdown(f'''<div class="status-box" style="margin-top:10px;">
-            <div class="label-text">ELAPSED TIME</div>
-            <div class="main-value color-elapsed">{min_c:02d}:{sec_c:02d}</div>
-        </div>''', unsafe_allow_html=True)
-
-        # 下段：スケジュール
-        sched_html = '<div class="sched-grid">'
-        for i, t in enumerate(temps):
-            active = "sched-active" if i == min_c and is_running else ""
-            sched_html += f'<div class="sched-item {active}">{i}m<br>{t}℃</div>'
-        sched_html += '</div>'
-        st.markdown(sched_html, unsafe_allow_html=True)
-
-# 実行制御
-if st.session_state.running:
-    while st.session_state.running:
-        elapsed = int(time.time() - st.session_state.start_time)
-        m, s = elapsed // 60, elapsed % 60
-        
-        if m > st.session_state.last_alert_min:
-            play_sound_js()
-            st.session_state.last_alert_min = m
-            
-        render(m, s, True)
-        time.sleep(0.5)
-        if m >= len(temps): break
-else:
-    render(0, 0, False)
+            st.session_state.running =
