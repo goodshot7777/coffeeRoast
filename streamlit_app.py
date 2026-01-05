@@ -23,7 +23,6 @@ st.markdown("""
     .stApp { background-color: #000000; }
     .main .block-container { padding-top: 1rem; max-width: 600px; }
     
-    /* 共通数値スタイル（サイズ統一） */
     .main-value {
         font-size: 2.5rem !important; 
         font-weight: 900;
@@ -49,27 +48,23 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* 各項目の色（高コントラスト設定） */
-    .color-temp { color: #00ffcc; } /* ターゲット温度：明るいシアン */
-    .color-next { color: #ff3366; } /* 次の計測：明るいピンク */
-    .color-elapsed { color: #ffffff; } /* 経過時間：白 */
+    .color-temp { color: #00ffcc; }
+    .color-next { color: #ff3366; }
+    .color-elapsed { color: #ffffff; }
 
-    /* スケジュールグリッド（ここを重点的に修正） */
     .sched-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 20px; }
     
-    /* 非アクティブ状態：黒背景に白文字・白枠 */
     .sched-item {
         background: #000000;
         border: 2px solid #ffffff;
         padding: 8px 5px;
         border-radius: 8px;
         font-size: 0.85rem;
-        color: #ffffff; /* 純粋な白に変更 */
+        color: #ffffff;
         text-align: center;
         font-weight: 800;
     }
     
-    /* アクティブ状態：黄背景に黒文字（最高コントラスト） */
     .sched-active {
         background: #ffff00 !important;
         border-color: #ffff00 !important;
@@ -81,39 +76,63 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 状態管理 ---
-if 'start_time' not in st.session_state: st.session_state.start_time = None
+# --- 状態管理の初期化 ---
 if 'running' not in st.session_state: st.session_state.running = False
+if 'paused' not in st.session_state: st.session_state.paused = False
+if 'total_elapsed' not in st.session_state: st.session_state.total_elapsed = 0.0
+if 'last_tick' not in st.session_state: st.session_state.last_tick = 0.0
 if 'last_alert_min' not in st.session_state: st.session_state.last_alert_min = -1
 
 # --- 操作エリア ---
-sel_col, btn_col = st.columns([2, 1])
+sel_col, btn_col = st.columns([1.5, 1.5])
+
 with sel_col:
     selected_name = st.selectbox("PROFILE", list(PROFILES.keys()), label_visibility="collapsed")
     temps = PROFILES[selected_name]
+
 with btn_col:
+    # 状態に応じたボタンの出し分け
     if not st.session_state.running:
+        # 停止中
         if st.button("▶ START", use_container_width=True, type="primary"):
-            st.session_state.start_time = time.time()
             st.session_state.running = True
+            st.session_state.paused = False
+            st.session_state.total_elapsed = 0.0
+            st.session_state.last_tick = time.time()
             st.session_state.last_alert_min = -1
             play_sound_js()
+            st.rerun()
     else:
-        if st.button("⏹ STOP", use_container_width=True):
-            st.session_state.running = False
+        c_p, c_s = st.columns(2)
+        with c_p:
+            if not st.session_state.paused:
+                if st.button("Ⅱ PAUSE", use_container_width=True):
+                    st.session_state.paused = True
+                    st.rerun()
+            else:
+                if st.button("▶ RESUME", use_container_width=True):
+                    st.session_state.paused = False
+                    st.session_state.last_tick = time.time() # 再開した瞬間の時刻を記録
+                    st.rerun()
+        with c_s:
+            if st.button("⏹ STOP", use_container_width=True):
+                st.session_state.running = False
+                st.session_state.paused = False
+                st.rerun()
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # --- メイン表示エリア ---
 display_placeholder = st.empty()
 
-def render(min_c, sec_c, is_running):
-    target = temps[min_c] if min_c < len(temps) else temps[-1]
-    next_in = 60 - sec_c
-    prog = sec_c / 60.0
+def render(total_sec, is_running):
+    m_c = int(total_sec // 60)
+    s_c = int(total_sec % 60)
+    target = temps[m_c] if m_c < len(temps) else temps[-1]
+    next_in = 60 - s_c
+    prog = s_c / 60.0
 
     with display_placeholder.container():
-        # 上段
         c1, c2 = st.columns(2)
         with c1:
             st.markdown(f'''<div class="status-box">
@@ -128,32 +147,41 @@ def render(min_c, sec_c, is_running):
         
         st.progress(prog)
         
-        # 中段
-        st.markdown(f'''<div class="status-box" style="margin-top:10px; border-color: #ffffff;">
+        st.markdown(f'''<div class="status-box" style="margin-top:10px;">
             <div class="label-text">ELAPSED TIME</div>
-            <div class="main-value color-elapsed">{min_c:02d}:{sec_c:02d}</div>
+            <div class="main-value color-elapsed">{m_c:02d}:{s_c:02d}</div>
         </div>''', unsafe_allow_html=True)
 
-        # 下段：スケジュール（高コントラスト版）
         sched_html = '<div class="sched-grid">'
         for i, t in enumerate(temps):
-            active_class = "sched-active" if i == min_c and is_running else ""
+            # 動作中かつ現在時刻の場合のみ黄色
+            active_class = "sched-active" if i == m_c and is_running else ""
             sched_html += f'<div class="sched-item {active_class}">{i}m<br>{t}℃</div>'
         sched_html += '</div>'
         st.markdown(sched_html, unsafe_allow_html=True)
 
-# 実行制御
+# --- 実行ループ ---
 if st.session_state.running:
     while st.session_state.running:
-        elapsed = int(time.time() - st.session_state.start_time)
-        m, s = elapsed // 60, elapsed % 60
-        
-        if m > st.session_state.last_alert_min:
-            play_sound_js()
-            st.session_state.last_alert_min = m
+        if not st.session_state.paused:
+            now = time.time()
+            # 前回のチェックからの経過分を加算
+            st.session_state.total_elapsed += now - st.session_state.last_tick
+            st.session_state.last_tick = now
             
-        render(m, s, True)
-        time.sleep(0.5)
-        if m >= len(temps): break
+            # アラート判定
+            m_now = int(st.session_state.total_elapsed // 60)
+            if m_now > st.session_state.last_alert_min:
+                play_sound_js()
+                st.session_state.last_alert_min = m_now
+        
+        render(st.session_state.total_elapsed, st.session_state.running)
+        
+        # 終了判定
+        if int(st.session_state.total_elapsed // 60) >= len(temps):
+            st.session_state.running = False
+            break
+            
+        time.sleep(0.2)
 else:
     render(0, 0, False)
