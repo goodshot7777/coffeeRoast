@@ -15,7 +15,7 @@ def play_sound_js():
         height=0,
     )
 
-st.set_page_config(page_title="Roast Cockpit Neo", layout="wide")
+st.set_page_config(page_title="ROAST TIMER", layout="wide")
 
 # --- 高コントラストCSSデザイン ---
 st.markdown("""
@@ -182,3 +182,4 @@ if st.session_state.running:
 else:
     # ここがエラーの原因でした：render(0, 0, False) から 修正
     render(0.0, False)
+
